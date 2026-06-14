@@ -4,19 +4,61 @@ if (!function_exists('safe_query')) {
     die('Access denied');
 }
 
-global $_database, $plugin;
+global $plugin;
 
-$modulname = 'links';
-$version = isset($plugin['version']) ? (string)$plugin['version'] : ($version ?? '1.0.3.3');
-$pluginName = 'Links';
-$pluginPath = 'includes/plugins/links/';
+PluginInstallerHelper::install([
 
-if (!function_exists('links_sql')) {
-    function links_sql($value): string
-    {
-        return escape((string)$value);
-    }
-}
+    'modulname'  => 'links',
+    'name'       => 'Links',
+    'version'    => (string)($plugin['version'] ?? '0.0.0'),
+    'author'     => 'T-Seven',
+    'website'    => 'https://www.nexpell.de',
+    'path'       => 'includes/plugins/links/',
+
+    'admin_file' => 'admin_links',
+    'index_link' => 'links,admin_links,links_rating',
+    'sidebar'    => 'deactivated',
+
+    'languages' => [
+        'plugin_info_links' => [
+            'de' => 'Mit diesem Plugin könnt ihr eure Links anzeigen lassen.',
+            'en' => 'With this plugin you can display your links.',
+            'it' => 'Con questo plugin puoi visualizzare i tuoi link.'
+        ]
+    ],
+
+    'permissions' => [
+        'links'
+    ],
+
+    'admin_navigation' => [
+        [
+            'url'   => 'admincenter.php?site=admin_links',
+            'catID' => 13,
+            'sort'  => 1,
+            'labels' => [
+                'de' => 'Links',
+                'en' => 'Links',
+                'it' => 'Link'
+            ]
+        ]
+    ],
+
+    'website_navigation' => [
+        [
+            'url'        => 'index.php?site=links',
+            'mnavID'     => 5,
+            'sort'       => 1,
+            'indropdown' => 1,
+            'labels' => [
+                'de' => 'Links',
+                'en' => 'Links',
+                'it' => 'Link'
+            ]
+        ]
+    ]
+
+]);
 
 safe_query("CREATE TABLE IF NOT EXISTS plugins_links_categories (
   id int(11) NOT NULL AUTO_INCREMENT,
@@ -66,153 +108,3 @@ safe_query("CREATE TABLE IF NOT EXISTS plugins_links_settings (
   DEFAULT CHARSET=utf8 DEFAULT COLLATE utf8_unicode_ci");
 
 safe_query("INSERT IGNORE INTO plugins_links_settings (linkssetID, links, linkchars) VALUES (1, 4, '300')");
-
-## SYSTEM #######################################################################
-
-$pluginRes = safe_query("SELECT pluginID FROM settings_plugins WHERE modulname = 'links' LIMIT 1");
-if ($pluginRes && ($pluginRow = mysqli_fetch_assoc($pluginRes))) {
-    safe_query("UPDATE settings_plugins SET
-        admin_file = 'admin_links',
-        activate = 1,
-        author = 'T-Seven',
-        website = 'https://www.nexpell.de',
-        index_link = 'links,admin_links,links_rating',
-        hiddenfiles = '',
-        version = '" . links_sql($version) . "',
-        path = '" . links_sql($pluginPath) . "',
-        status_display = 1,
-        plugin_display = 1,
-        widget_display = 1,
-        delete_display = 1,
-        sidebar = 'deactivated'
-        WHERE pluginID = " . (int)$pluginRow['pluginID'] . "
-    ");
-} else {
-    safe_query("INSERT INTO settings_plugins
-        (modulname, admin_file, activate, author, website, index_link, hiddenfiles, version, path, status_display, plugin_display, widget_display, delete_display, sidebar)
-    VALUES
-        ('links', 'admin_links', 1, 'T-Seven', 'https://www.nexpell.de', 'links,admin_links,links_rating', '', '" . links_sql($version) . "', '" . links_sql($pluginPath) . "', 1, 1, 1, 1, 'deactivated')
-    ");
-}
-
-safe_query("
-    INSERT INTO settings_plugins_lang
-        (content_key, language, content, modulname, updated_at)
-    VALUES
-        ('plugin_name_links', 'de', 'Links', 'links', NOW()),
-        ('plugin_name_links', 'en', 'Links', 'links', NOW()),
-        ('plugin_name_links', 'it', 'Link', 'links', NOW()),
-        ('plugin_info_links', 'de', 'Mit diesem Plugin könnt ihr eure Links anzeigen lassen.', 'links', NOW()),
-        ('plugin_info_links', 'en', 'With this plugin you can display your links.', 'links', NOW()),
-        ('plugin_info_links', 'it', 'Con questo plugin puoi visualizzare i tuoi link.', 'links', NOW())
-    ON DUPLICATE KEY UPDATE
-        content = VALUES(content),
-        modulname = VALUES(modulname),
-        updated_at = VALUES(updated_at)
-");
-
-safe_query("
-    INSERT INTO settings_plugins_installed
-        (name, modulname, description, version, author, url, folder, installed_date)
-    VALUES
-        ('Links', 'links', 'With this plugin you can display your links.', '" . links_sql($version) . "', 'nexpell-team', 'https://www.nexpell.de', 'links', NOW())
-    ON DUPLICATE KEY UPDATE
-        name = VALUES(name),
-        description = VALUES(description),
-        version = VALUES(version),
-        author = VALUES(author),
-        url = VALUES(url),
-        folder = VALUES(folder),
-        installed_date = NOW()
-");
-
-## NAVIGATION ###################################################################
-
-$linkID = 0;
-$linkRes = safe_query("
-    SELECT linkID FROM navigation_dashboard_links
-    WHERE modulname = 'links'
-    ORDER BY linkID ASC LIMIT 1
-");
-if ($linkRes && ($linkRow = mysqli_fetch_assoc($linkRes))) {
-    $linkID = (int)($linkRow['linkID'] ?? 0);
-    safe_query("
-        UPDATE navigation_dashboard_links SET
-            catID = 13,
-            url = 'admincenter.php?site=admin_links',
-            sort = 1
-        WHERE linkID = " . $linkID . "
-    ");
-} else {
-    safe_query("
-        INSERT INTO navigation_dashboard_links
-            (catID, modulname, url, sort)
-        VALUES
-            (13, 'links', 'admincenter.php?site=admin_links', 1)
-    ");
-    $linkID = (int)mysqli_insert_id($_database);
-}
-
-if ($linkID > 0) {
-    safe_query("
-        INSERT INTO navigation_dashboard_lang
-            (content_key, language, content, modulname, updated_at)
-        VALUES
-            ('nav_link_{$linkID}', 'de', 'Links', 'links', NOW()),
-            ('nav_link_{$linkID}', 'en', 'Links', 'links', NOW()),
-            ('nav_link_{$linkID}', 'it', 'Link', 'links', NOW())
-        ON DUPLICATE KEY UPDATE
-            content = VALUES(content),
-            modulname = VALUES(modulname),
-            updated_at = VALUES(updated_at)
-    ");
-}
-
-$snavID = 0;
-$snavRes = safe_query("
-    SELECT snavID FROM navigation_website_sub
-    WHERE modulname = 'links'
-    ORDER BY snavID ASC LIMIT 1
-");
-if ($snavRes && ($snavRow = mysqli_fetch_assoc($snavRes))) {
-    $snavID = (int)($snavRow['snavID'] ?? 0);
-    safe_query("
-        UPDATE navigation_website_sub SET
-            mnavID = 5,
-            url = 'index.php?site=links',
-            sort = 1,
-            indropdown = 1,
-            last_modified = NOW()
-        WHERE snavID = " . $snavID . "
-    ");
-} else {
-    safe_query("
-        INSERT INTO navigation_website_sub
-            (mnavID, modulname, url, sort, indropdown, last_modified)
-        VALUES
-            (5, 'links', 'index.php?site=links', 1, 1, NOW())
-    ");
-    $snavID = (int)mysqli_insert_id($_database);
-}
-
-if ($snavID > 0) {
-    safe_query("
-        INSERT INTO navigation_website_lang
-            (content_key, language, content, modulname, updated_at)
-        VALUES
-            ('nav_sub_{$snavID}', 'de', 'Links', 'links', NOW()),
-            ('nav_sub_{$snavID}', 'en', 'Links', 'links', NOW()),
-            ('nav_sub_{$snavID}', 'it', 'Link', 'links', NOW())
-        ON DUPLICATE KEY UPDATE
-            content = VALUES(content),
-            modulname = VALUES(modulname),
-            updated_at = VALUES(updated_at)
-    ");
-}
-
-safe_query("
-    INSERT IGNORE INTO user_role_admin_navi_rights
-        (id, roleID, type, modulname)
-    VALUES
-        ('', 1, 'link', 'links')
-");
